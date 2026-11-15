@@ -1,8 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Tests\Support;
 
 use AbdulWahhabKhan\DeviceAuth\Support\Base64Url;
+use OpenSSLAsymmetricKey;
+use RuntimeException;
 
 /**
  * A software stand-in for a device's built-in authenticator (TPM, Secure
@@ -12,9 +16,9 @@ use AbdulWahhabKhan\DeviceAuth\Support\Base64Url;
  */
 final class SoftAuthenticator
 {
-    private \OpenSSLAsymmetricKey $key;
+    private readonly OpenSSLAsymmetricKey $key;
 
-    private string $credentialId;
+    private readonly string $credentialId;
 
     private int $counter = 0;
 
@@ -28,7 +32,7 @@ final class SoftAuthenticator
         $key = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
 
         if ($key === false) {
-            throw new \RuntimeException('Could not create EC key: '.openssl_error_string());
+            throw new RuntimeException('Could not create EC key: '.openssl_error_string());
         }
 
         $this->key = $key;
@@ -38,6 +42,12 @@ final class SoftAuthenticator
     public function credentialId(): string
     {
         return Base64Url::encode($this->credentialId);
+    }
+
+    /** The public key as PEM, the format older versions of the package stored. */
+    public function publicKeyPem(): string
+    {
+        return openssl_pkey_get_details($this->key)['key'];
     }
 
     /**

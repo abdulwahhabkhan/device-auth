@@ -1,6 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Tests\Support;
+
+use InvalidArgumentException;
 
 /**
  * Just enough CBOR encoding to build WebAuthn test fixtures.
@@ -37,7 +41,7 @@ final class Cbor
             is_int($value) && $value >= 0 => self::head(0, $value),
             is_int($value) => self::head(1, -1 - $value),
             is_string($value) => self::head(3, strlen($value)).$value,
-            default => throw new \InvalidArgumentException('Unsupported CBOR value'),
+            default => throw new InvalidArgumentException('Unsupported CBOR value'),
         };
     }
 

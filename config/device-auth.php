@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 return [
 
     /*
@@ -102,22 +104,6 @@ return [
 
     // Route name for logging out (shown on the verification screen).
     'logout_route' => 'logout',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Inertia page components
-    |--------------------------------------------------------------------------
-    |
-    | Change these if you publish the pages somewhere else.
-    |
-    */
-
-    'pages' => [
-        'verify' => 'device-auth/verify',
-        'confirm' => 'device-auth/confirm',
-        'admin_index' => 'device-auth/admin/index',
-        'admin_show' => 'device-auth/admin/show',
-    ],
 
     /*
     |--------------------------------------------------------------------------

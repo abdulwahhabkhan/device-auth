@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Events;
 
 use AbdulWahhabKhan\DeviceAuth\Models\Device;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Foundation\Events\Dispatchable;
 
 /**
@@ -14,6 +17,6 @@ class DeviceAccessRequested
 
     public function __construct(
         public readonly Device $device,
-        public readonly mixed $actor = null,
+        public readonly ?Authenticatable $actor = null,
     ) {}
 }

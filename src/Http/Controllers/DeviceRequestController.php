@@ -1,21 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Http\Controllers;
 
-use AbdulWahhabKhan\DeviceAuth\DeviceAuth;
-use AbdulWahhabKhan\DeviceAuth\Enums\DeviceStatus;
-use AbdulWahhabKhan\DeviceAuth\Events\DeviceAccessRequested;
+use AbdulWahhabKhan\DeviceAuth\Contracts\BeginsDeviceRegistration;
+use AbdulWahhabKhan\DeviceAuth\Contracts\RequestsDeviceAccess;
+use AbdulWahhabKhan\DeviceAuth\Contracts\Responses\DeviceAccessRequestedResponse;
+use AbdulWahhabKhan\DeviceAuth\Contracts\Responses\FailedDeviceAuthResponse;
 use AbdulWahhabKhan\DeviceAuth\Exceptions\DeviceAuthException;
-use AbdulWahhabKhan\DeviceAuth\Http\Controllers\Concerns\RespondsWithDeviceStatus;
-use AbdulWahhabKhan\DeviceAuth\Http\Requests\DeviceAccessRequest;
-use AbdulWahhabKhan\DeviceAuth\Models\Device;
-use AbdulWahhabKhan\DeviceAuth\Notifications\NewDeviceRequest;
-use AbdulWahhabKhan\DeviceAuth\Services\DeviceKeyService;
-use AbdulWahhabKhan\DeviceAuth\Services\DeviceMetadata;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Notification;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * "Request access for this device": creates a key on the device and stores
@@ -23,59 +20,23 @@ use Illuminate\Support\Facades\Notification;
  */
 class DeviceRequestController extends Controller
 {
-    use RespondsWithDeviceStatus;
-
-    public function options(Request $request, DeviceKeyService $keys): JsonResponse
-    {
-        $request->validate(['name' => ['required', 'string', 'max:100']]);
-
-        if ($this->pendingCount($request) >= (int) config('device-auth.max_pending_per_user', 3)) {
-            return response()->json([
-                'status' => 'too_many_requests',
-                'message' => 'You already have requests waiting for approval. Ask your administrator to review them first.',
-            ], 429);
-        }
-
-        return response()->json($keys->beginRegistration($request->string('name')->trim()->toString()));
-    }
-
-    public function store(DeviceAccessRequest $request, DeviceKeyService $keys, DeviceMetadata $metadata): JsonResponse
+    public function options(Request $request, BeginsDeviceRegistration $action, FailedDeviceAuthResponse $failed): Response
     {
         try {
-            $key = $keys->finishRegistration($request->credential());
+            return new JsonResponse($action->begin($request, $request->all()));
         } catch (DeviceAuthException $e) {
-            return $this->failed($e);
+            return $failed->toResponse($request, $e);
         }
-
-        $device = Device::query()->create(
-            $key->toAttributes()
-            + $metadata->describe($request, (array) $request->validated('client', []))
-            + [
-                'name' => trim((string) $request->validated('name')),
-                'request_note' => $request->validated('note'),
-                'requested_by' => $request->user()->getAuthIdentifier(),
-                'status' => DeviceStatus::Pending,
-            ]
-        );
-
-        DeviceAccessRequested::dispatch($device, $request->user());
-
-        if (config('device-auth.notifications')) {
-            Notification::send(DeviceAuth::admins(), new NewDeviceRequest($device));
-        }
-
-        return response()->json([
-            'status' => DeviceStatus::Pending->value,
-            'device' => $device->publicSummary(),
-            'contact' => config('device-auth.admin_contact'),
-        ], 201);
     }
 
-    private function pendingCount(Request $request): int
+    public function store(Request $request, RequestsDeviceAccess $action, DeviceAccessRequestedResponse $requested, FailedDeviceAuthResponse $failed): Response
     {
-        return Device::query()
-            ->withStatus(DeviceStatus::Pending)
-            ->where('requested_by', $request->user()->getAuthIdentifier())
-            ->count();
+        try {
+            $device = $action->request($request, $request->all());
+        } catch (DeviceAuthException $e) {
+            return $failed->toResponse($request, $e);
+        }
+
+        return $requested->toResponse($request, $device);
     }
 }

@@ -1,0 +1,33 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Regenerates stubs/actions from src/Actions, so the classes an app
+ * publishes are always identical to the package defaults.
+ *
+ *   composer stubs:sync
+ */
+
+$root = dirname(__DIR__);
+$target = $root.'/stubs/actions';
+
+foreach (glob($target.'/*.php') ?: [] as $old) {
+    unlink($old);
+}
+
+foreach (glob($root.'/src/Actions/*.php') ?: [] as $source) {
+    file_put_contents($target.'/'.basename($source), toStub((string) file_get_contents($source)));
+}
+
+echo 'Synced '.count(glob($target.'/*.php') ?: []).' action stubs.'.PHP_EOL;
+
+function toStub(string $code): string
+{
+    return str_replace(
+        'namespace AbdulWahhabKhan\\DeviceAuth\\Actions;',
+        'namespace App\\Actions\\DeviceAuth;',
+        $code,
+    );
+}

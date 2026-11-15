@@ -1,19 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Http\Controllers;
 
+use AbdulWahhabKhan\DeviceAuth\Contracts\BeginsDeviceVerification;
+use AbdulWahhabKhan\DeviceAuth\Contracts\ConfirmsDevice;
+use AbdulWahhabKhan\DeviceAuth\Contracts\Responses\ConfirmViewResponse;
+use AbdulWahhabKhan\DeviceAuth\Contracts\Responses\DeviceConfirmedResponse;
+use AbdulWahhabKhan\DeviceAuth\Contracts\Responses\FailedDeviceAuthResponse;
+use AbdulWahhabKhan\DeviceAuth\Data\ConfirmPageData;
 use AbdulWahhabKhan\DeviceAuth\DeviceAuth;
-use AbdulWahhabKhan\DeviceAuth\Events\DeviceVerified;
+use AbdulWahhabKhan\DeviceAuth\Enums\CeremonyPurpose;
 use AbdulWahhabKhan\DeviceAuth\Exceptions\DeviceAuthException;
-use AbdulWahhabKhan\DeviceAuth\Http\Controllers\Concerns\RespondsWithDeviceStatus;
-use AbdulWahhabKhan\DeviceAuth\Http\Requests\AssertionRequest;
-use AbdulWahhabKhan\DeviceAuth\Models\DeviceLogin;
-use AbdulWahhabKhan\DeviceAuth\Services\DeviceKeyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Inertia\Inertia;
-use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Re-confirm the current device before sensitive actions
@@ -21,63 +24,31 @@ use Inertia\Response;
  */
 class DeviceConfirmationController extends Controller
 {
-    use RespondsWithDeviceStatus;
-
-    public function show(Request $request): Response
+    public function show(Request $request, ConfirmViewResponse $view): Response
     {
-        $device = DeviceAuth::currentDevice($request);
-
-        return Inertia::render(config('device-auth.pages.confirm'), [
-            'device' => $device ? ['name' => $device->name, 'reference' => $device->reference()] : null,
-            'urls' => [
-                'options' => route('device-auth.confirm.options'),
-                'confirm' => route('device-auth.confirm.store'),
-            ],
-        ]);
+        return $view->toResponse($request, ConfirmPageData::fromRequest($request));
     }
 
     public function status(Request $request): JsonResponse
     {
-        return response()->json([
+        return new JsonResponse([
             'confirmed' => DeviceAuth::recentlyConfirmed($request),
         ]);
     }
 
-    public function options(Request $request, DeviceKeyService $keys): JsonResponse
+    public function options(Request $request, BeginsDeviceVerification $action): JsonResponse
     {
-        // Only the device this session signed in with may confirm.
-        return response()->json($keys->beginVerification('confirm', DeviceAuth::currentDevice($request)));
+        return new JsonResponse($action->begin($request, CeremonyPurpose::Confirm));
     }
 
-    public function store(AssertionRequest $request, DeviceKeyService $keys): JsonResponse
+    public function store(Request $request, ConfirmsDevice $action, DeviceConfirmedResponse $confirmed, FailedDeviceAuthResponse $failed): Response
     {
         try {
-            $device = $keys->finishVerification('confirm', $request->assertion(), DeviceAuth::currentDevice($request));
+            $device = $action->confirm($request, $request->all());
         } catch (DeviceAuthException $e) {
-            return $this->failed($e);
+            return $failed->toResponse($request, $e);
         }
 
-        if (! $device->isActive()) {
-            return $this->notApproved($device);
-        }
-
-        DeviceAuth::markConfirmed($request);
-
-        DeviceLogin::query()->create([
-            'device_id' => $device->getKey(),
-            'user_id' => $request->user()->getAuthIdentifier(),
-            'ip' => $request->ip(),
-            'purpose' => 'confirm',
-        ]);
-
-        DeviceVerified::dispatch($device, $request->user(), 'confirm');
-
-        return response()->json([
-            'status' => 'confirmed',
-            // The full-page flow goes back to where the user was heading; the modal flow stays put.
-            'redirect' => $request->boolean('page')
-                ? redirect()->intended(config('device-auth.home', '/'))->getTargetUrl()
-                : null,
-        ]);
+        return $confirmed->toResponse($request, $device);
     }
 }

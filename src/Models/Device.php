@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Models;
 
 use AbdulWahhabKhan\DeviceAuth\DeviceAuth;
@@ -8,9 +10,17 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
- * An approved (or pending) device key — the equivalent of a line in authorized_keys.
+ * An approved (or pending) device key: the equivalent of a line in authorized_keys.
+ *
+ * @phpstan-import-type UserSummary from DeviceAuth
+ *
+ * @phpstan-type PublicSummary array{reference: string, name: string, status: value-of<DeviceStatus>, requested_at: string|null, review_note: string|null}
+ * @phpstan-type AdminSummary array{id: int, reference: string, name: string, status: value-of<DeviceStatus>, device_type: string|null, os: string|null, browser: string|null, request_ip: string|null, requester: UserSummary|null, created_at: string|null, last_seen_at: string|null, backup_eligible: bool}
+ * @phpstan-type AdminDetails array{id: int, reference: string, name: string, status: value-of<DeviceStatus>, device_type: string|null, os: string|null, browser: string|null, request_ip: string|null, requester: UserSummary|null, created_at: string|null, last_seen_at: string|null, backup_eligible: bool, request_note: string|null, user_agent: string|null, os_family: string|null, device_model: string|null, client_meta: array<string, mixed>, aaguid: string|null, backed_up: bool, reviewer: UserSummary|null, reviewed_at: string|null, review_note: string|null, last_ip: string|null}
+ * @phpstan-type ShownDevice array{id: int, reference: string, name: string, status: value-of<DeviceStatus>, device_type: string|null, os: string|null, browser: string|null, request_ip: string|null, requester: UserSummary|null, created_at: string|null, last_seen_at: string|null, backup_eligible: bool, request_note: string|null, user_agent: string|null, os_family: string|null, device_model: string|null, client_meta: array<string, mixed>, aaguid: string|null, backed_up: bool, reviewer: UserSummary|null, reviewed_at: string|null, review_note: string|null, last_ip: string|null, authenticator: string|null, is_current: bool}
  *
  * @property int $id
  * @property string $name
@@ -21,7 +31,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $aaguid
  * @property bool $backup_eligible
  * @property bool $backed_up
- * @property mixed $requested_by
+ * @property int|string|null $requested_by
  * @property string|null $request_note
  * @property string|null $request_ip
  * @property string|null $user_agent
@@ -31,13 +41,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $device_type
  * @property string|null $device_model
  * @property array<string, mixed>|null $client_meta
- * @property mixed $reviewed_by
- * @property \Illuminate\Support\Carbon|null $reviewed_at
+ * @property int|string|null $reviewed_by
+ * @property Carbon|null $reviewed_at
  * @property string|null $review_note
  * @property string|null $last_ip
- * @property \Illuminate\Support\Carbon|null $last_seen_at
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $last_seen_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Model|null $requester
+ * @property-read Model|null $reviewer
  */
 class Device extends Model
 {
@@ -47,9 +59,10 @@ class Device extends Model
 
     public function getTable(): string
     {
-        return config('device-auth.tables.devices', 'device_auth_devices');
+        return DeviceAuth::table('devices');
     }
 
+    /** @return array<string, string> */
     protected function casts(): array
     {
         return [
@@ -63,24 +76,62 @@ class Device extends Model
         ];
     }
 
+    /** @return BelongsTo<Model, $this> */
     public function requester(): BelongsTo
     {
         return $this->belongsTo(DeviceAuth::userModel(), 'requested_by');
     }
 
+    /** @return BelongsTo<Model, $this> */
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(DeviceAuth::userModel(), 'reviewed_by');
     }
 
+    /** @return HasMany<DeviceLogin, $this> */
     public function logins(): HasMany
     {
         return $this->hasMany(DeviceLogin::class);
     }
 
-    public function scopeWithStatus(Builder $query, DeviceStatus $status): Builder
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    protected function scopeWithStatus(Builder $query, DeviceStatus $status): Builder
     {
         return $query->where('status', $status->value);
+    }
+
+    /**
+     * Number of devices per status, every status present.
+     *
+     * @return array<value-of<DeviceStatus>, int>
+     */
+    public static function countsByStatus(): array
+    {
+        /** @var array<string, int|string> $totals */
+        $totals = static::query()
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status')
+            ->all();
+
+        $counts = [];
+
+        foreach (DeviceStatus::cases() as $status) {
+            $counts[$status->value] = (int) ($totals[$status->value] ?? 0);
+        }
+
+        return $counts;
+    }
+
+    /** Find by numeric id or reference ("DEV-00042"). */
+    public static function findByReference(string $reference): ?self
+    {
+        $id = (int) preg_replace('/\D/', '', $reference);
+
+        return $id > 0 ? static::query()->find($id) : null;
     }
 
     public function isActive(): bool
@@ -90,13 +141,18 @@ class Device extends Model
 
     public function reference(): string
     {
-        return 'DEV-'.str_pad((string) $this->getKey(), 5, '0', STR_PAD_LEFT);
+        return 'DEV-'.str_pad((string) $this->id, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function describe(): string
+    {
+        return collect([$this->device_type, $this->os, $this->browser])->filter()->implode(', ');
     }
 
     /**
      * What the person at the device may see about their own request.
      *
-     * @return array<string, mixed>
+     * @return PublicSummary
      */
     public function publicSummary(): array
     {
@@ -111,11 +167,11 @@ class Device extends Model
         ];
     }
 
-    /** @return array<string, mixed> */
+    /** @return AdminSummary */
     public function adminSummary(): array
     {
         return [
-            'id' => $this->getKey(),
+            'id' => $this->id,
             'reference' => $this->reference(),
             'name' => $this->name,
             'status' => $this->status->value,
@@ -130,7 +186,7 @@ class Device extends Model
         ];
     }
 
-    /** @return array<string, mixed> */
+    /** @return AdminDetails */
     public function adminDetails(): array
     {
         return $this->adminSummary() + [

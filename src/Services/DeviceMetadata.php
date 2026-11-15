@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Services;
 
 use AbdulWahhabKhan\DeviceAuth\Models\Device;
@@ -34,7 +36,7 @@ class DeviceMetadata
             'device_type' => $parsed['device_type'],
             'device_model' => $parsed['device_model'],
             'client_meta' => array_map(
-                fn ($value) => is_scalar($value) ? mb_substr((string) $value, 0, 100) : null,
+                fn ($value): ?string => is_scalar($value) ? mb_substr((string) $value, 0, 100) : null,
                 Arr::only($client, self::CLIENT_KEYS),
             ),
         ];
@@ -51,7 +53,7 @@ class DeviceMetadata
         );
         $detector->parse();
 
-        $known = fn ($value) => is_string($value) && $value !== '' && $value !== 'UNK' ? $value : null;
+        $known = fn ($value): ?string => is_string($value) && $value !== '' && $value !== 'UNK' ? $value : null;
 
         $osName = $known($detector->getOs('name'));
         $browser = $known($detector->getClient('name'));

@@ -1,20 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\WebAuthn;
 
 /**
  * The public half of a newly created device key, ready to be stored.
  */
-final class RegisteredKey
+final readonly class RegisteredKey
 {
     public function __construct(
-        public readonly string $credentialId,   // base64url
-        public readonly string $publicKey,      // PEM
-        public readonly int $signCount,
-        public readonly ?string $aaguid,        // xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx or null
-        public readonly bool $backupEligible,   // true = synced passkey (iCloud, Google…)
-        public readonly bool $backedUp,
-        public readonly string $attestationFormat,
+        public string $credentialId,   // base64url
+        public string $publicKey,      // COSE key, base64url
+        public int $signCount,
+        public ?string $aaguid,        // xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx or null
+        public bool $backupEligible,   // true = synced passkey (iCloud, Google…)
+        public bool $backedUp,
+        public string $attestationFormat,
     ) {}
 
     /** @return array<string, mixed> */

@@ -1,14 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Tests;
 
+use AbdulWahhabKhan\DeviceAuth\DeviceAuth;
 use AbdulWahhabKhan\DeviceAuth\DeviceAuthServiceProvider;
+use AbdulWahhabKhan\DeviceAuth\Enums\DeviceStatus;
+use AbdulWahhabKhan\DeviceAuth\Models\Device;
 use AbdulWahhabKhan\DeviceAuth\Tests\Support\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
-use Inertia\ServiceProvider as InertiaServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra
@@ -17,7 +21,7 @@ abstract class TestCase extends Orchestra
 
     protected function getPackageProviders($app): array
     {
-        return [InertiaServiceProvider::class, DeviceAuthServiceProvider::class];
+        return [DeviceAuthServiceProvider::class];
     }
 
     protected function defineEnvironment($app): void
@@ -30,7 +34,7 @@ abstract class TestCase extends Orchestra
 
     protected function defineDatabaseMigrations(): void
     {
-        Schema::create('users', function (Blueprint $table) {
+        Schema::create('users', function (Blueprint $table): void {
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
@@ -42,9 +46,35 @@ abstract class TestCase extends Orchestra
 
     protected function defineRoutes($router): void
     {
-        Route::middleware(['web', 'auth', 'device.verified'])->get('/dashboard', fn () => 'dashboard');
-        Route::middleware(['web', 'auth', 'device.verified', 'device.confirm'])->post('/danger', fn () => 'done');
-        Route::middleware('web')->get('/login', fn () => 'login')->name('login');
+        Route::middleware(['web', 'auth', 'device.verified'])->get('/dashboard', fn (): string => 'dashboard');
+        Route::middleware(['web', 'auth', 'device.verified', 'device.confirm'])->post('/danger', fn (): string => 'done');
+        Route::middleware('web')->get('/login', fn (): string => 'login')->name('login');
+    }
+
+    /**
+     * A stored device without going through WebAuthn.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    protected function device(array $attributes = []): Device
+    {
+        return Device::query()->create($attributes + [
+            'name' => 'Reception PC',
+            'status' => DeviceStatus::Pending,
+            'credential_id' => bin2hex(random_bytes(16)),
+            'public_key' => 'test',
+            'request_ip' => '10.0.0.5',
+        ]);
+    }
+
+    /** Pretend the current session verified with this device. */
+    protected function onDevice(User $user, Device $device): static
+    {
+        return $this->actingAs($user)->withSession([
+            DeviceAuth::SESSION_DEVICE => $device->id,
+            DeviceAuth::SESSION_USER => (string) $user->id,
+            DeviceAuth::SESSION_CONFIRMED_AT => now()->getTimestamp(),
+        ]);
     }
 
     protected function user(array $attributes = []): User

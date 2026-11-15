@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Tests\Support;
 
-final class CborValue
+final readonly class CborValue
 {
-    public function __construct(public readonly string $encoded) {}
+    public function __construct(public string $encoded) {}
 }

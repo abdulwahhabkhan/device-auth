@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Http\Middleware;
 
 use AbdulWahhabKhan\DeviceAuth\DeviceAuth;
 use Closure;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -14,16 +17,19 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class RequireDeviceConfirmation
 {
+    /**
+     * @param  Closure(Request): Response  $next
+     */
     public function handle(Request $request, Closure $next): Response
     {
         if (! DeviceAuth::enabled() || DeviceAuth::recentlyConfirmed($request)) {
             return $next($request);
         }
 
-        if ($request->expectsJson() && ! $request->header('X-Inertia')) {
-            return response()->json([
+        if ($request->expectsJson() && ! $request->hasHeader('X-Inertia')) {
+            return new JsonResponse([
                 'status' => 'confirm_required',
-                'message' => 'Confirm this device to continue.',
+                'message' => __('device-auth::messages.confirm_required'),
                 'confirm_url' => route('device-auth.confirm'),
             ], 423);
         }
@@ -32,7 +38,7 @@ class RequireDeviceConfirmation
         if ($request->isMethod('GET')) {
             $request->session()->put('url.intended', $request->fullUrl());
 
-            return redirect()->route('device-auth.confirm');
+            return to_route('device-auth.confirm');
         }
 
         // Actions (approve, delete…): go back and let the page open the confirm dialog.

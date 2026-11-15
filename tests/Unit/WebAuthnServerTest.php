@@ -1,11 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Tests\Unit;
 
 use AbdulWahhabKhan\DeviceAuth\Support\Base64Url;
 use AbdulWahhabKhan\DeviceAuth\Tests\Support\SoftAuthenticator;
+use AbdulWahhabKhan\DeviceAuth\WebAuthn\RegisteredKey;
+use AbdulWahhabKhan\DeviceAuth\WebAuthn\VerificationFailed;
 use AbdulWahhabKhan\DeviceAuth\WebAuthn\WebAuthnServer;
-use lbuchs\WebAuthn\WebAuthnException;
 use PHPUnit\Framework\TestCase;
 
 class WebAuthnServerTest extends TestCase
@@ -17,7 +20,7 @@ class WebAuthnServerTest extends TestCase
         $this->server = new WebAuthnServer('Test App', 'localhost', 60, true);
     }
 
-    private function register(SoftAuthenticator $device): \AbdulWahhabKhan\DeviceAuth\WebAuthn\RegisteredKey
+    private function register(SoftAuthenticator $device): RegisteredKey
     {
         $ceremony = $this->server->creationCeremony(random_bytes(16), 'Reception PC', 'Reception PC (device key)');
         $answer = $device->create($ceremony->options);
@@ -71,7 +74,7 @@ class WebAuthnServerTest extends TestCase
         $request = $this->server->requestCeremony();
         $signed = (new SoftAuthenticator)->get($request->options);
 
-        $this->expectException(WebAuthnException::class);
+        $this->expectException(VerificationFailed::class);
 
         $this->server->verifyAssertion(
             Base64Url::decode($signed['clientDataJSON']),
@@ -88,7 +91,7 @@ class WebAuthnServerTest extends TestCase
         $ceremony = $this->server->creationCeremony(random_bytes(16), 'x', 'x');
         $answer = (new SoftAuthenticator)->create($ceremony->options);
 
-        $this->expectException(WebAuthnException::class);
+        $this->expectException(VerificationFailed::class);
 
         $this->server->verifyCreation(
             Base64Url::decode($answer['clientDataJSON']),
@@ -99,14 +102,14 @@ class WebAuthnServerTest extends TestCase
 
     public function test_a_key_without_user_verification_is_rejected(): void
     {
-        $this->expectException(WebAuthnException::class);
+        $this->expectException(VerificationFailed::class);
 
         $this->register(new SoftAuthenticator(userVerified: false));
     }
 
     public function test_a_foreign_origin_is_rejected(): void
     {
-        $this->expectException(WebAuthnException::class);
+        $this->expectException(VerificationFailed::class);
 
         $this->register(new SoftAuthenticator(origin: 'https://evil.example'));
     }
@@ -118,5 +121,60 @@ class WebAuthnServerTest extends TestCase
         $this->assertTrue($key->backupEligible);
         $this->assertTrue($key->backedUp);
         $this->assertNull($key->aaguid);
+    }
+
+    public function test_keys_stored_as_pem_by_older_versions_still_verify(): void
+    {
+        $device = new SoftAuthenticator;
+        $this->register($device);
+
+        $request = $this->server->requestCeremony();
+        $signed = $device->get($request->options);
+
+        $counter = $this->server->verifyAssertion(
+            Base64Url::decode($signed['clientDataJSON']),
+            Base64Url::decode($signed['authenticatorData']),
+            Base64Url::decode($signed['signature']),
+            $device->publicKeyPem(),
+            $request->challenge,
+            0,
+        );
+
+        $this->assertSame(0, $counter);
+    }
+
+    public function test_a_signature_counter_that_goes_backwards_is_rejected(): void
+    {
+        $device = new SoftAuthenticator;
+        $key = $this->register($device);
+
+        $request = $this->server->requestCeremony();
+        $signed = $device->get($request->options);
+
+        $this->expectException(VerificationFailed::class);
+
+        $this->server->verifyAssertion(
+            Base64Url::decode($signed['clientDataJSON']),
+            Base64Url::decode($signed['authenticatorData']),
+            Base64Url::decode($signed['signature']),
+            $key->publicKey,
+            $request->challenge,
+            5, // stored counter is ahead of the device's: possible clone
+        );
+    }
+
+    public function test_plain_http_is_only_allowed_on_localhost(): void
+    {
+        $server = new WebAuthnServer('Test App', 'example.com', 60, true);
+        $ceremony = $server->creationCeremony(random_bytes(16), 'x', 'x');
+        $answer = (new SoftAuthenticator(rpId: 'example.com', origin: 'http://example.com'))->create($ceremony->options);
+
+        $this->expectException(VerificationFailed::class);
+
+        $server->verifyCreation(
+            Base64Url::decode($answer['clientDataJSON']),
+            Base64Url::decode($answer['attestationObject']),
+            $ceremony->challenge,
+        );
     }
 }

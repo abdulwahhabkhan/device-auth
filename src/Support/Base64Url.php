@@ -1,6 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Support;
+
+use InvalidArgumentException;
 
 final class Base64Url
 {
@@ -17,7 +21,7 @@ final class Base64Url
         $decoded = base64_decode($value, true);
 
         if ($decoded === false) {
-            throw new \InvalidArgumentException('Invalid base64url value.');
+            throw new InvalidArgumentException('Invalid base64url value.');
         }
 
         return $decoded;

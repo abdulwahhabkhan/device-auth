@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Tests\Feature;
 
 use AbdulWahhabKhan\DeviceAuth\DeviceAuth;
@@ -9,6 +11,7 @@ use AbdulWahhabKhan\DeviceAuth\Notifications\NewDeviceRequest;
 use AbdulWahhabKhan\DeviceAuth\Tests\Support\SoftAuthenticator;
 use AbdulWahhabKhan\DeviceAuth\Tests\TestCase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Testing\TestResponse;
 
 class DeviceFlowTest extends TestCase
 {
@@ -38,7 +41,7 @@ class DeviceFlowTest extends TestCase
         return Device::query()->latest('id')->firstOrFail();
     }
 
-    private function verify(SoftAuthenticator $key): \Illuminate\Testing\TestResponse
+    private function verify(SoftAuthenticator $key): TestResponse
     {
         $options = $this->postJson(route('device-auth.verify.options'))->assertOk()->json();
 

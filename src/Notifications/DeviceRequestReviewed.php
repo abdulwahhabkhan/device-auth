@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Notifications;
 
-use AbdulWahhabKhan\DeviceAuth\Enums\DeviceStatus;
+use AbdulWahhabKhan\DeviceAuth\DeviceAuth;
 use AbdulWahhabKhan\DeviceAuth\Models\Device;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -17,40 +19,46 @@ class DeviceRequestReviewed extends Notification
     /** @return list<string> */
     public function via(mixed $notifiable): array
     {
-        return config('device-auth.notifications', ['mail']);
+        return DeviceAuth::notificationChannels();
     }
 
     public function toMail(mixed $notifiable): MailMessage
     {
-        $d = $this->device;
-        $approved = $d->status === DeviceStatus::Active;
+        $device = $this->device;
+        $replace = [
+            'name' => $device->name,
+            'reference' => $device->reference(),
+            'status' => $device->status->value,
+        ];
 
-        $mail = (new MailMessage)
-            ->subject($approved
-                ? "Device approved: {$d->name}"
-                : "Device {$d->status->value}: {$d->name}");
-
-        if ($approved) {
-            return $mail
-                ->line("Your device \"{$d->name}\" ({$d->reference()}) was approved.")
-                ->line('Open the application on that device and choose Verify device to continue.')
-                ->action('Open application', url(config('device-auth.home', '/')));
+        if ($device->isActive()) {
+            return (new MailMessage)
+                ->subject(__('device-auth::messages.mail.approved_subject', $replace))
+                ->line(__('device-auth::messages.mail.approved_line', $replace))
+                ->line(__('device-auth::messages.mail.approved_next'))
+                ->action(__('device-auth::messages.mail.approved_action'), url(DeviceAuth::home()));
         }
 
-        return $mail
-            ->line("Your device \"{$d->name}\" ({$d->reference()}) is {$d->status->value}.")
-            ->when($d->review_note, fn (MailMessage $m) => $m->line("Reason: {$d->review_note}"))
-            ->line('Contact your administrator if you need access from this device.');
+        return (new MailMessage)
+            ->subject(__('device-auth::messages.mail.reviewed_subject', $replace))
+            ->line(__('device-auth::messages.mail.reviewed_line', $replace))
+            ->when($device->review_note !== null && $device->review_note !== '', static fn (MailMessage $mail): MailMessage => $mail->line(
+                __('device-auth::messages.mail.reviewed_reason', ['reason' => (string) $device->review_note]),
+            ))
+            ->line(__('device-auth::messages.mail.reviewed_contact'));
     }
 
-    /** @return array<string, mixed> */
+    /** @return array{device_id: int, reference: string, status: string, message: string} */
     public function toArray(mixed $notifiable): array
     {
         return [
-            'device_id' => $this->device->getKey(),
+            'device_id' => $this->device->id,
             'reference' => $this->device->reference(),
             'status' => $this->device->status->value,
-            'message' => "Device {$this->device->name} is {$this->device->status->value}.",
+            'message' => __('device-auth::messages.mail.reviewed_summary', [
+                'name' => $this->device->name,
+                'status' => $this->device->status->value,
+            ]),
         ];
     }
 }

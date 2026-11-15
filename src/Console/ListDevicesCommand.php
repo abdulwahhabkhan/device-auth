@@ -1,11 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Console;
 
+use AbdulWahhabKhan\DeviceAuth\DeviceAuth;
 use AbdulWahhabKhan\DeviceAuth\Enums\DeviceStatus;
 use AbdulWahhabKhan\DeviceAuth\Models\Device;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Builder;
+use Symfony\Component\Console\Attribute\AsCommand;
 
+#[AsCommand(name: 'device-auth:list')]
 class ListDevicesCommand extends Command
 {
     protected $signature = 'device-auth:list {--status= : pending, active, rejected or revoked}';
@@ -14,9 +20,10 @@ class ListDevicesCommand extends Command
 
     public function handle(): int
     {
-        $status = $this->option('status') ? DeviceStatus::tryFrom((string) $this->option('status')) : null;
+        $option = $this->option('status');
+        $status = is_string($option) && $option !== '' ? DeviceStatus::tryFrom($option) : null;
 
-        if ($this->option('status') && ! $status) {
+        if (is_string($option) && $option !== '' && ! $status instanceof DeviceStatus) {
             $this->components->error('Unknown status. Use pending, active, rejected or revoked.');
 
             return self::FAILURE;
@@ -24,7 +31,7 @@ class ListDevicesCommand extends Command
 
         $devices = Device::query()
             ->with('requester')
-            ->when($status, fn ($q) => $q->withStatus($status))
+            ->when($status, static fn (Builder $query, DeviceStatus $status): Builder => $query->where('status', $status->value))
             ->latest()
             ->get();
 
@@ -36,16 +43,16 @@ class ListDevicesCommand extends Command
 
         $this->table(
             ['ID', 'Reference', 'Name', 'Status', 'Device', 'Requested by', 'IP', 'Requested'],
-            $devices->map(fn (Device $d) => [
-                $d->getKey(),
+            $devices->map(static fn (Device $d): array => [
+                $d->id,
                 $d->reference(),
                 $d->name,
                 $d->status->value,
-                collect([$d->device_type, $d->os, $d->browser])->filter()->implode(', '),
-                data_get($d->requester, 'email') ?? data_get($d->requester, 'name') ?? '-',
+                $d->describe(),
+                DeviceAuth::describeUser($d->requester)['email'] ?? DeviceAuth::describeUser($d->requester)['name'] ?? '-',
                 $d->request_ip,
                 $d->created_at?->diffForHumans(),
-            ]),
+            ])->all(),
         );
 
         return self::SUCCESS;

@@ -1,23 +1,41 @@
 {
     "name": "abdulwahhabkhan/device-auth",
-    "description": "Device-key (WebAuthn) authentication for Laravel + Inertia React: only approved devices can use the application, like SSH keys for the browser.",
+    "description": "Device-key (WebAuthn) authentication for Laravel: only approved devices can use the application, like SSH keys for the browser. Backend only; pair it with device-auth-react or device-auth-livewire.",
     "type": "library",
     "license": "MIT",
-    "keywords": ["laravel", "webauthn", "passkeys", "device", "2fa", "inertia", "react"],
+    "keywords": ["laravel", "webauthn", "passkeys", "device", "2fa", "authentication", "fortify"],
+    "homepage": "https://github.com/abdulwahhabkhan/device-auth",
+    "authors": [
+        {
+            "name": "Abdul Wahhab Khan",
+            "homepage": "https://github.com/abdulwahhabkhan"
+        }
+    ],
     "require": {
         "php": "^8.2",
         "ext-openssl": "*",
-        "illuminate/support": "^11.0|^12.0|^13.0",
+        "illuminate/console": "^11.0|^12.0|^13.0",
+        "illuminate/contracts": "^11.0|^12.0|^13.0",
         "illuminate/database": "^11.0|^12.0|^13.0",
         "illuminate/http": "^11.0|^12.0|^13.0",
         "illuminate/notifications": "^11.0|^12.0|^13.0",
-        "inertiajs/inertia-laravel": "^2.0|^3.0",
-        "lbuchs/webauthn": "^2.2",
-        "matomo/device-detector": "^6.4"
+        "illuminate/routing": "^11.0|^12.0|^13.0",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "illuminate/validation": "^11.0|^12.0|^13.0",
+        "matomo/device-detector": "^6.4",
+        "web-auth/webauthn-lib": "^5.3"
     },
     "require-dev": {
+        "driftingly/rector-laravel": "^2.0",
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.18",
         "orchestra/testbench": "^9.0|^10.0|^11.0",
-        "phpunit/phpunit": "^11.0|^12.0"
+        "phpunit/phpunit": "^11.0|^12.0",
+        "rector/rector": "^2.0"
+    },
+    "suggest": {
+        "abdulwahhabkhan/device-auth-react": "Inertia + React pages for device verification and the admin screens.",
+        "abdulwahhabkhan/device-auth-livewire": "Livewire + Alpine pages for device verification and the admin screens."
     },
     "autoload": {
         "psr-4": {
@@ -26,7 +44,9 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "AbdulWahhabKhan\\DeviceAuth\\Tests\\": "tests/"
+            "AbdulWahhabKhan\\DeviceAuth\\Tests\\": "tests/",
+            "App\\Actions\\DeviceAuth\\": "stubs/actions/",
+            "App\\Providers\\": "stubs/"
         }
     },
     "extra": {
@@ -37,7 +57,19 @@
         }
     },
     "scripts": {
-        "test": "phpunit"
+        "lint": "pint",
+        "refactor": "rector",
+        "stubs:sync": "@php bin/sync-stubs",
+        "test:lint": "pint --test",
+        "test:refactor": "rector --dry-run",
+        "test:types": "phpstan analyse --memory-limit=1G",
+        "test:unit": "phpunit",
+        "test": [
+            "@test:lint",
+            "@test:refactor",
+            "@test:types",
+            "@test:unit"
+        ]
     },
     "config": {
         "sort-packages": true

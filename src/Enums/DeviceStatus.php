@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace AbdulWahhabKhan\DeviceAuth\Enums;
 
 enum DeviceStatus: string
@@ -11,11 +13,6 @@ enum DeviceStatus: string
 
     public function label(): string
     {
-        return match ($this) {
-            self::Pending => 'Waiting for approval',
-            self::Active => 'Approved',
-            self::Rejected => 'Rejected',
-            self::Revoked => 'Revoked',
-        };
+        return __('device-auth::messages.status.'.$this->value);
     }
 }

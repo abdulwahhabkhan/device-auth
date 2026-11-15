@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -16,7 +18,7 @@ return new class extends Migration
             };
         };
 
-        Schema::create(config('device-auth.tables.devices', 'device_auth_devices'), function (Blueprint $table) use ($userColumn) {
+        Schema::create(config('device-auth.tables.devices', 'device_auth_devices'), function (Blueprint $table) use ($userColumn): void {
             $table->id();
             $table->string('name');
             $table->string('status', 20)->default('pending')->index();
@@ -52,7 +54,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create(config('device-auth.tables.logins', 'device_auth_logins'), function (Blueprint $table) use ($userColumn) {
+        Schema::create(config('device-auth.tables.logins', 'device_auth_logins'), function (Blueprint $table) use ($userColumn): void {
             $table->id();
             $table->foreignId('device_id')
                 ->constrained(config('device-auth.tables.devices', 'device_auth_devices'))

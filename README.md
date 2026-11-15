@@ -22,6 +22,22 @@ Keys belong to the **device**, not the user: any user may sign in on any approve
 
 PHP 8.2+, Laravel 11, 12 or 13, Inertia (Laravel adapter 2 or 3) with React and Tailwind CSS. The site must be served over **https** (or `localhost` during development).
 
+### Dependencies
+
+Composer installs these with the package:
+
+| Package | Used for |
+|---|---|
+| `web-auth/webauthn-lib` ^5.3 | Checks WebAuthn registrations and signatures. It's the same library `laravel/passkeys` uses, so apps with both install it only once. |
+| `matomo/device-detector` ^6.4 | Turns the user agent and client hints into the browser, OS and device type shown to administrators. |
+| `inertiajs/inertia-laravel` ^2.0 or ^3.0 | Renders the verify, confirm and admin pages. |
+| `illuminate/*` ^11, ^12 or ^13 | Laravel support, database, HTTP and notifications. |
+| `ext-openssl` | Signature checks. |
+
+The React pages need `react` and `@inertiajs/react`, which an Inertia React app already has. They use the browser's own WebAuthn API, so no npm WebAuthn package is needed. The authenticator names (Windows Hello, iCloud Keychain…) come from `resources/data/aaguids.json`, which ships with the package, so nothing is looked up over the network.
+
+**Upgrading from a version that used `lbuchs/webauthn`:** new keys are stored as COSE keys instead of PEM. Devices registered earlier keep working without a migration, because their PEM keys are converted when they sign in. Such a device stops working only if it was registered with an Ed25519 key, which built-in authenticators don't use.
+
 ## Installation
 
 ```bash
