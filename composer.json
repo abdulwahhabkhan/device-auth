@@ -1,0 +1,47 @@
+{
+    "name": "abdulwahhabkhan/device-auth",
+    "description": "Device-key (WebAuthn) authentication for Laravel + Inertia React: only approved devices can use the application, like SSH keys for the browser.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["laravel", "webauthn", "passkeys", "device", "2fa", "inertia", "react"],
+    "require": {
+        "php": "^8.2",
+        "ext-openssl": "*",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "illuminate/database": "^11.0|^12.0|^13.0",
+        "illuminate/http": "^11.0|^12.0|^13.0",
+        "illuminate/notifications": "^11.0|^12.0|^13.0",
+        "inertiajs/inertia-laravel": "^2.0|^3.0",
+        "lbuchs/webauthn": "^2.2",
+        "matomo/device-detector": "^6.4"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "phpunit/phpunit": "^11.0|^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "AbdulWahhabKhan\\DeviceAuth\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AbdulWahhabKhan\\DeviceAuth\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "AbdulWahhabKhan\\DeviceAuth\\DeviceAuthServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
