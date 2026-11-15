@@ -18,23 +18,32 @@ It works in two places:
 
 Keys belong to the **device**, not the user: any user may sign in on any approved device, and every use is logged.
 
+## Packages
+
+This is the **backend**: WebAuthn, models, middleware, actions, routes and JSON endpoints. Pair it with a frontend, or render the pages yourself.
+
+| Package | What it adds |
+|---|---|
+| `abdulwahhabkhan/device-auth` | This package. Backend only, no frontend dependency. |
+| [`abdulwahhabkhan/device-auth-react`](https://github.com/abdulwahhabkhan/device-auth-react) | Inertia + React pages (verify, confirm, admin) and helpers. |
+| [`abdulwahhabkhan/device-auth-livewire`](https://github.com/abdulwahhabkhan/device-auth-livewire) | Livewire + Alpine pages, plain Tailwind. |
+
 ## Requirements
 
-PHP 8.2+, Laravel 11, 12 or 13, Inertia (Laravel adapter 2 or 3) with React and Tailwind CSS. The site must be served over **https** (or `localhost` during development).
+PHP 8.2+ and Laravel 11, 12 or 13. The site must be served over **https** (or `localhost` during development).
 
 ### Dependencies
-
-Composer installs these with the package:
 
 | Package | Used for |
 |---|---|
 | `web-auth/webauthn-lib` ^5.3 | Checks WebAuthn registrations and signatures. It's the same library `laravel/passkeys` uses, so apps with both install it only once. |
 | `matomo/device-detector` ^6.4 | Turns the user agent and client hints into the browser, OS and device type shown to administrators. |
-| `inertiajs/inertia-laravel` ^2.0 or ^3.0 | Renders the verify, confirm and admin pages. |
-| `illuminate/*` ^11, ^12 or ^13 | Laravel support, database, HTTP and notifications. |
+| `illuminate/*` ^11, ^12 or ^13 | Laravel: `console`, `contracts`, `database`, `http`, `notifications`, `routing`, `support` and `validation`. |
 | `ext-openssl` | Signature checks. |
 
-The React pages need `react` and `@inertiajs/react`, which an Inertia React app already has. They use the browser's own WebAuthn API, so no npm WebAuthn package is needed. The authenticator names (Windows Hello, iCloud Keychain…) come from `resources/data/aaguids.json`, which ships with the package, so nothing is looked up over the network.
+Nothing here depends on a frontend stack: Inertia, React and Livewire come only with the frontend package you choose.
+
+The authenticator names (Windows Hello, iCloud Keychain…) come from `resources/data/aaguids.json`, which ships with the package, so nothing is looked up over the network.
 
 **Upgrading from a version that used `lbuchs/webauthn`:** new keys are stored as COSE keys instead of PEM. Devices registered earlier keep working without a migration, because their PEM keys are converted when they sign in. Such a device stops working only if it was registered with an Ed25519 key, which built-in authenticators don't use.
 
@@ -42,32 +51,15 @@ The React pages need `react` and `@inertiajs/react`, which an Inertia React app 
 
 ```bash
 composer require abdulwahhabkhan/device-auth
-php artisan device-auth:install   # publishes config/device-auth.php and the React pages
+php artisan device-auth:install    # config, migrations, app/Actions/DeviceAuth, App\Providers\DeviceAuthServiceProvider
 php artisan migrate
-npm run build
+
+# then a frontend
+composer require abdulwahhabkhan/device-auth-react      # or
+composer require abdulwahhabkhan/device-auth-livewire
 ```
 
-The React files are published to:
-
-```
-resources/js/pages/device-auth/       verify, confirm, admin/index, admin/show
-resources/js/device-auth/             shared components and helpers
-```
-
-They use plain Tailwind utilities (neutral palette with `dark:` variants), React and `@inertiajs/react` only. Edit them freely after publishing.
-
-### Inertia page resolution
-
-Pages are named `device-auth/verify`, `device-auth/confirm`, `device-auth/admin/index` and `device-auth/admin/show`. If your app resolves pages from `resources/js/pages` (the Laravel starter kits do), nothing else is needed. Otherwise change `pages` in `config/device-auth.php`.
-
-The verify and confirm pages draw their own full-screen layout. If your `createInertiaApp` assigns a default layout, exclude them:
-
-```tsx
-layout: (name) => {
-    if (name === 'device-auth/verify' || name === 'device-auth/confirm') return null;
-    // ...your existing rules
-},
-```
+`device-auth:install` works like `fortify:install`. It publishes the action classes to `app/Actions/DeviceAuth` and registers `App\Providers\DeviceAuthServiceProvider` in `bootstrap/providers.php`. That provider points every step at your copies.
 
 ### Protect routes
 
@@ -83,17 +75,14 @@ Route::middleware(['auth', 'device.verified'])->group(function () {
 
 ### Administrators
 
-By default users whose `is_superadmin` attribute is true can review devices (`admin_attribute` in the config). For other rules:
+By default users whose `is_superadmin` attribute is true can review devices (`admin_attribute` in the config). For other rules, in your `DeviceAuthServiceProvider`:
 
 ```php
-// AppServiceProvider::boot()
-use AbdulWahhabKhan\DeviceAuth\DeviceAuth;
-
 DeviceAuth::authorizeAdminsUsing(fn ($user) => $user->hasRole('it-admin'));
 DeviceAuth::resolveAdminsUsing(fn () => User::role('it-admin')->get()); // who gets "new request" mails
 ```
 
-The admin screens are at `/admin/devices` and need the `manage-device-auth` gate, a verified device, and a fresh device confirmation for approve, reject and revoke.
+The admin screens are at `/admin/devices`. They need the `manage-device-auth` gate and a verified device. Approve, reject and revoke also need a fresh device confirmation.
 
 ### The first device
 
@@ -106,27 +95,63 @@ php artisan device-auth:approve 1
 
 During rollout you can set `DEVICE_AUTH_ENABLED=false`, register the devices, approve them, then switch it on.
 
-## Frontend helpers
+## Customizing
 
-```tsx
-import { ConfirmsDevice, useDeviceConfirmation, DeviceConfirmPrompt, useDeviceAuth } from '@/device-auth';
+### Actions
 
-// Ask the device to confirm before an action
-<ConfirmsDevice onConfirmed={() => router.delete(url)}>
-    <button>Delete</button>
-</ConfirmsDevice>
+Every step is a small class behind a contract, in the style of Laravel Fortify. Edit your published copy, or point a contract at any class:
 
-// Or programmatically
-const { confirm, dialog } = useDeviceConfirmation();
-if (await confirm()) { /* ... */ }   // render {dialog}
+| Contract | Default | Does |
+|---|---|---|
+| `BeginsDeviceRegistration` | `BeginDeviceRegistration` | Validates the device name, enforces the pending limit, returns WebAuthn creation options |
+| `RequestsDeviceAccess` | `RequestDeviceAccess` | Stores the new key as pending, records device details, notifies admins |
+| `BeginsDeviceVerification` | `BeginDeviceVerification` | WebAuthn request options for verify or confirm |
+| `VerifiesDevice` | `VerifyDevice` | Checks the signature and platform, marks the session verified, logs the sign-in |
+| `ConfirmsDevice` | `ConfirmDevice` | Re-confirms the session's own device before sensitive actions |
+| `ApprovesDevice` | `ApproveDevice` | Approves (also used by `device-auth:approve`) |
+| `RejectsDevice` | `RejectDevice` | Rejects with a reason |
+| `RevokesDevice` | `RevokeDevice` | Revokes (also used by `device-auth:revoke`) |
+| `ListsDevices` | `ListDevices` | The admin list: status, search, pagination |
 
-// Mount once in your app layout: opens the dialog when the server
-// bounced an action with "confirm required"
-<DeviceConfirmPrompt />
-
-// Shared props on every page: current device, pending count for admins, URLs
-const deviceAuth = useDeviceAuth();
+```php
+// app/Providers/DeviceAuthServiceProvider.php
+DeviceAuth::approveDevicesUsing(ApproveDevice::class);   // App\Actions\DeviceAuth\ApproveDevice
 ```
+
+Actions validate their own input (`ValidationException`) and throw `DeviceAuthException` subclasses for expected failures (`UnknownDeviceKey`, `DeviceNotApproved`, `DeviceMismatch`, `ChallengeExpired`, `TooManyPendingRequests`, `InvalidDeviceState`). Each exception carries a machine-readable `reason()` and an HTTP `status()`.
+
+### Views
+
+Pages are rendered through view callbacks, like `Fortify::loginView()`. The frontend packages register them for you. To render a page yourself:
+
+```php
+use AbdulWahhabKhan\DeviceAuth\Data\VerifyPageData;
+
+DeviceAuth::verifyView('auth.verify-device');   // Blade: gets $data plus each field ($user, $contact, $urls)
+DeviceAuth::verifyView(fn (Request $request, VerifyPageData $data) => Inertia::render('Verify', $data->toArray())); // needs inertiajs/inertia-laravel in your app
+DeviceAuth::confirmView(...);
+DeviceAuth::deviceIndexView(...);
+DeviceAuth::deviceShowView(...);
+```
+
+Each page gets a typed, read-only data object (`VerifyPageData`, `ConfirmPageData`, `DeviceIndexPageData`, `DeviceShowPageData`). Without a registered view, a page answers with that data as JSON, which suits a separate SPA. `DeviceAuth::state()` returns the shared session state (current device, admin flag, pending count, confirm URLs) for layouts.
+
+### Responses
+
+Bind your own implementation of any contract in `AbdulWahhabKhan\DeviceAuth\Contracts\Responses` (`DeviceVerifiedResponse`, `DeviceConfirmedResponse`, `DeviceAccessRequestedResponse`, `DeviceReviewedResponse`, `FailedDeviceAuthResponse`) to change what an endpoint returns.
+
+### Publishable resources
+
+| Tag | Publishes |
+|---|---|
+| `device-auth-config` | `config/device-auth.php` |
+| `device-auth-migrations` | the migration |
+| `device-auth-actions` | `app/Actions/DeviceAuth/*` |
+| `device-auth-provider` | `app/Providers/DeviceAuthServiceProvider.php` |
+| `device-auth-routes` | `routes/device-auth.php` (call `DeviceAuth::ignoreRoutes()` and load your copy) |
+| `device-auth-lang` | `lang/vendor/device-auth` (every message and mail line) |
+
+`DeviceAuth::ignoreMigrations()` stops the package from loading its own migration.
 
 ## What the user sees
 
@@ -165,7 +190,7 @@ DEVICE_AUTH_CONFIRM_TIMEOUT=600
 
 Changing `DEVICE_AUTH_RP_ID` (the domain) invalidates every key, because browsers bind keys to it.
 
-Other options: notification channels, pending requests per user, route prefixes and middleware, table names, user key type (`int`, `uuid`, `ulid`), page names.
+Other options: notification channels, pending requests per user, route prefixes and middleware, table names, user key type (`int`, `uuid`, `ulid`).
 
 ## Events
 
@@ -180,11 +205,18 @@ php artisan device-auth:approve {id|DEV-00001} [--name=]
 php artisan device-auth:revoke {id|DEV-00001} [--reason=]
 ```
 
-## Testing
+## Development
 
 ```bash
 composer install
-vendor/bin/phpunit
+composer test          # pint --test, rector --dry-run, phpstan (level 7), phpunit
+composer lint          # format with Pint
+composer refactor      # apply Rector
+composer stubs:sync    # copy src/Actions to stubs/actions after editing an action
 ```
 
 `tests/Support/SoftAuthenticator.php` is a software authenticator that creates real P-256 keys and browser-shaped responses, so the whole flow can be tested without a browser. You can use it in your app's tests too.
+
+## License
+
+MIT
