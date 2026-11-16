@@ -2,6 +2,13 @@
 
 All notable changes to `abdulwahhabkhan/device-auth` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-11-16
+
+### Documentation
+- README now states up front that devices prove themselves with passkeys (WebAuthn). The SSH table is marked as a comparison only; nothing uses SSH or `ssh-keygen`.
+- Documented the four page response contracts (`VerifyViewResponse`, `ConfirmViewResponse`, `DeviceIndexViewResponse`, `DeviceShowViewResponse`), the `platform_authenticators_only` option, and passkeys synced through third-party password managers.
+- Reworded the Composer package description.
+
 ## [0.2.0] - 2026-11-16
 
 ### Changed (breaking)
