@@ -51,7 +51,7 @@ The authenticator names (Windows Hello, iCloud Keychain…) come from `resources
 
 ```bash
 composer require abdulwahhabkhan/device-auth
-php artisan device-auth:install    # config, migrations, app/Actions/DeviceAuth, App\Providers\DeviceAuthServiceProvider
+php artisan device-auth:install    # config, app/Actions/DeviceAuth, App\Providers\DeviceAuthServiceProvider
 php artisan migrate
 
 # then a frontend
@@ -145,7 +145,7 @@ Bind your own implementation of any contract in `AbdulWahhabKhan\DeviceAuth\Cont
 | Tag | Publishes |
 |---|---|
 | `device-auth-config` | `config/device-auth.php` |
-| `device-auth-migrations` | the migration |
+| `device-auth-migrations` | the migration (only needed with `DeviceAuth::ignoreMigrations()`) |
 | `device-auth-actions` | `app/Actions/DeviceAuth/*` |
 | `device-auth-provider` | `app/Providers/DeviceAuthServiceProvider.php` |
 | `device-auth-routes` | `routes/device-auth.php` (call `DeviceAuth::ignoreRoutes()` and load your copy) |

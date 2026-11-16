@@ -11,7 +11,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Publishes everything an app customizes, like `fortify:install`:
- * config, migrations, the action classes and a service provider that
+ * config, the action classes and a service provider that
  * registers them.
  */
 #[AsCommand(name: 'device-auth:install')]
@@ -19,11 +19,11 @@ class InstallCommand extends Command
 {
     protected $signature = 'device-auth:install {--force : Overwrite files that were already published}';
 
-    protected $description = 'Publish the device-auth config, migrations, actions and service provider';
+    protected $description = 'Publish the device-auth config, actions and service provider';
 
     public function handle(): int
     {
-        foreach (['device-auth-config', 'device-auth-migrations', 'device-auth-actions', 'device-auth-provider'] as $tag) {
+        foreach (['device-auth-config', 'device-auth-actions', 'device-auth-provider'] as $tag) {
             $this->callSilently('vendor:publish', ['--tag' => $tag, '--force' => (bool) $this->option('force')]);
         }
 

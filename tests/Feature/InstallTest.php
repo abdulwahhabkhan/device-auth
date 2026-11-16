@@ -50,7 +50,6 @@ final class InstallTest extends TestCase
         } finally {
             $files->delete([$paths[0], $paths[2]]);
             $files->deleteDirectory($paths[1]);
-            $files->delete(glob(database_path('migrations/*_create_device_auth_tables.php')) ?: []);
         }
     }
 
