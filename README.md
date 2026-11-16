@@ -1,12 +1,14 @@
 # abdulwahhabkhan/device-auth
 
-Only approved devices can use your Laravel application, the way only approved SSH keys can log in to a server.
+Only approved devices can use your Laravel application. Each device proves itself with a **passkey** (WebAuthn), not a password and not an SSH key.
 
-Each computer, phone or tablet creates its own key pair inside its secure hardware (Windows Hello / TPM, Apple Secure Enclave, Android keystore) using WebAuthn. The private key never leaves the device. The application stores only the public key, and an administrator approves it, like adding a line to `authorized_keys`. No static IP or VPN is needed.
+Each computer, phone or tablet creates its own passkey inside its secure hardware (Windows Hello / TPM, Apple Secure Enclave, Android keystore). The private key never leaves the device. The application stores only the public key, and an administrator approves it. No static IP or VPN is needed.
 
-| SSH | This package |
+If you know SSH, the approval model is the same idea. Nothing here uses SSH or `ssh-keygen`; the comparison only explains the flow:
+
+| SSH (for comparison) | This package (passkeys / WebAuthn) |
 |---|---|
-| `ssh-keygen` on your computer | “Request access for this device” creates a key on the device |
+| You run `ssh-keygen` on your computer | The user clicks **Request access for this device**; the browser creates a passkey on the device |
 | Public key added to `authorized_keys` | Public key stored as **pending**, administrator clicks **Approve** |
 | Server sends a challenge, client signs it | App sends a challenge, device signs it after fingerprint, face or PIN |
 | Remove the line from `authorized_keys` | **Revoke**: the device is signed out on its next request |
@@ -138,7 +140,7 @@ Each page gets a typed, read-only data object (`VerifyPageData`, `ConfirmPageDat
 
 ### Responses
 
-Bind your own implementation of any contract in `AbdulWahhabKhan\DeviceAuth\Contracts\Responses` (`DeviceVerifiedResponse`, `DeviceConfirmedResponse`, `DeviceAccessRequestedResponse`, `DeviceReviewedResponse`, `FailedDeviceAuthResponse`) to change what an endpoint returns.
+Bind your own implementation of any contract in `AbdulWahhabKhan\DeviceAuth\Contracts\Responses` to change what an endpoint returns: `DeviceVerifiedResponse`, `DeviceConfirmedResponse`, `DeviceAccessRequestedResponse`, `DeviceReviewedResponse`, `FailedDeviceAuthResponse`, and the page responses `VerifyViewResponse`, `ConfirmViewResponse`, `DeviceIndexViewResponse`, `DeviceShowViewResponse`.
 
 ### Publishable resources
 
@@ -172,9 +174,9 @@ For each request: who asked and why, device type, OS, browser, model, screen, ti
 
 ## Keeping the key on the device
 
-- Keys must be created by the device's **built-in** authenticator (no USB keys, no “use a phone” QR code), and every use needs fingerprint, face or PIN.
+- Keys must be created by the device's **built-in** authenticator (no USB keys, no “use a phone” QR code), and every use needs fingerprint, face or PIN. Set `platform_authenticators_only` to `false` to also allow security keys and phones.
 - With `enforce_platform_match` (default on), a key approved for a Windows computer is refused from an iPhone, and so on (OS family and device type; browser and OS updates are fine).
-- **Synced passkeys:** on iPhone, iPad, Mac and most Android phones, passkeys sync through iCloud Keychain or Google Password Manager, so another device signed in to the same Apple or Google account could use the key. The admin screen flags these. For strict per-device control, use a separate Apple/Google account on those devices. Windows Hello keys stay in the computer's TPM.
+- **Synced passkeys:** on iPhone, iPad, Mac and most Android phones, passkeys sync through iCloud Keychain or Google Password Manager (or a password manager such as 1Password or Bitwarden), so another device signed in to the same Apple or Google account could use the key. The admin screen flags these. For strict per-device control, use a separate Apple/Google account on those devices. Windows Hello keys stay in the computer's TPM.
 - The browser's passkey picker may also list a user's personal sign-in passkeys for the same site. Device keys are labelled “*name* (device key)”.
 
 ## Configuration
@@ -190,7 +192,7 @@ DEVICE_AUTH_CONFIRM_TIMEOUT=600
 
 Changing `DEVICE_AUTH_RP_ID` (the domain) invalidates every key, because browsers bind keys to it.
 
-Other options: notification channels, pending requests per user, route prefixes and middleware, table names, user key type (`int`, `uuid`, `ulid`).
+Other options: `platform_authenticators_only`, `enforce_platform_match`, `admin_attribute`, notification channels, pending requests per user, route prefixes and middleware, table names, user key type (`int`, `uuid`, `ulid`).
 
 ## Events
 

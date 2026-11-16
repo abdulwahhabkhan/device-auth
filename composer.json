@@ -1,6 +1,6 @@
 {
     "name": "abdulwahhabkhan/device-auth",
-    "description": "Device-key (WebAuthn) authentication for Laravel: only approved devices can use the application, like SSH keys for the browser. Backend only; pair it with device-auth-react or device-auth-livewire.",
+    "description": "Device-key (WebAuthn) authentication for Laravel: only approved devices can use the application, each proving itself with a passkey stored on the device. Backend only; pair it with device-auth-react or device-auth-livewire.",
     "type": "library",
     "license": "MIT",
     "keywords": ["laravel", "webauthn", "passkeys", "device", "2fa", "authentication", "fortify"],
