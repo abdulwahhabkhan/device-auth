@@ -26,7 +26,7 @@ use InvalidArgumentException;
  */
 class DeviceKeyService
 {
-    private const CHALLENGE_KEY = 'device_auth.challenge.';
+    private const string CHALLENGE_KEY = 'device_auth.challenge.';
 
     public function server(Request $request): WebAuthnServer
     {

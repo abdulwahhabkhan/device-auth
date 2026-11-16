@@ -52,7 +52,7 @@ use Webauthn\TrustPath\EmptyTrustPath;
  */
 final class WebAuthnServer
 {
-    private const TRANSPORTS_ALL = ['usb', 'nfc', 'ble', 'hybrid', 'internal'];
+    private const array TRANSPORTS_ALL = ['usb', 'nfc', 'ble', 'hybrid', 'internal'];
 
     private ?SerializerInterface $serializer = null;
 

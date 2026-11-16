@@ -2,6 +2,12 @@
 
 All notable changes to `abdulwahhabkhan/device-auth` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-11-16
+
+### Changed (breaking)
+- Requires **Laravel 13** and **PHP 8.3+**. Every Laravel 11 release has open security advisories, so Composer refuses to install it by default, and Laravel 12 support was dropped with it.
+- Requires `laravel/framework` instead of individual `illuminate/*` packages; the package uses framework helpers and the Foundation event traits.
+
 ## [0.1.0] - 2026-11-15
 
 ### Changed (breaking)

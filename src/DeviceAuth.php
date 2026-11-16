@@ -42,19 +42,19 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class DeviceAuth
 {
-    public const SESSION_DEVICE = 'device_auth.device_id';
+    public const string SESSION_DEVICE = 'device_auth.device_id';
 
-    public const SESSION_USER = 'device_auth.user_id';
+    public const string SESSION_USER = 'device_auth.user_id';
 
-    public const SESSION_CONFIRMED_AT = 'device_auth.confirmed_at';
+    public const string SESSION_CONFIRMED_AT = 'device_auth.confirmed_at';
 
-    public const SESSION_CONFIRM_REQUIRED = 'device_auth.confirm_required';
+    public const string SESSION_CONFIRM_REQUIRED = 'device_auth.confirm_required';
 
-    public const SESSION_FLASH = 'device_auth.flash';
+    public const string SESSION_FLASH = 'device_auth.flash';
 
-    public const ABILITY = 'manage-device-auth';
+    public const string ABILITY = 'manage-device-auth';
 
-    private const REQUEST_CACHE = 'device_auth.device';
+    private const string REQUEST_CACHE = 'device_auth.device';
 
     /** Register the package routes (disable with ignoreRoutes()). */
     public static bool $registersRoutes = true;

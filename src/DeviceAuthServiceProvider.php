@@ -58,7 +58,7 @@ class DeviceAuthServiceProvider extends ServiceProvider
      *
      * @var array<class-string, class-string>
      */
-    private const ACTIONS = [
+    private const array ACTIONS = [
         BeginsDeviceRegistration::class => BeginDeviceRegistration::class,
         RequestsDeviceAccess::class => RequestDeviceAccess::class,
         BeginsDeviceVerification::class => BeginDeviceVerification::class,
@@ -71,7 +71,7 @@ class DeviceAuthServiceProvider extends ServiceProvider
     ];
 
     /** @var array<class-string, class-string> */
-    private const RESPONSES = [
+    private const array RESPONSES = [
         VerifyViewResponse::class => ViewResponse::class,
         ConfirmViewResponse::class => ViewResponse::class,
         DeviceIndexViewResponse::class => ViewResponse::class,
