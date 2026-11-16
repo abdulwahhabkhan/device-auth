@@ -38,7 +38,7 @@ PHP 8.2+ and Laravel 11, 12 or 13. The site must be served over **https** (or `l
 |---|---|
 | `web-auth/webauthn-lib` ^5.3 | Checks WebAuthn registrations and signatures. It's the same library `laravel/passkeys` uses, so apps with both install it only once. |
 | `matomo/device-detector` ^6.4 | Turns the user agent and client hints into the browser, OS and device type shown to administrators. |
-| `illuminate/*` ^11, ^12 or ^13 | Laravel: `console`, `contracts`, `database`, `http`, `notifications`, `routing`, `support` and `validation`. |
+| `laravel/framework` ^11, ^12 or ^13 | Laravel itself. The package uses framework helpers (`config()`, `route()`, `__()`, `event()`…) and event traits, so the full framework is required rather than individual `illuminate/*` components. |
 | `ext-openssl` | Signature checks. |
 
 Nothing here depends on a frontend stack: Inertia, React and Livewire come only with the frontend package you choose.
